@@ -2,11 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Users, Trophy, TrendingUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
 
 const Leagues = () => {
-  const navigate = useNavigate();
-
   // Mock data for leagues
   const userLeagues = [
     {
@@ -37,13 +35,14 @@ const Leagues = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
+      <Header />
+      
+      <div className="border-b border-border/40 bg-card/50">
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-foreground">My Leagues</h1>
           <p className="text-muted-foreground mt-2">Manage your betting leagues and compete with friends</p>
         </div>
-      </header>
+      </div>
 
       <main className="container mx-auto px-4 py-8">
         {/* Action Buttons */}

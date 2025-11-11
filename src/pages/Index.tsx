@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import Header from "@/components/Header";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-8">
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-2xl">
         <h1 className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
           BetSocial
@@ -30,6 +33,7 @@ const Index = () => {
             Learn More
           </Button>
         </div>
+      </div>
       </div>
     </div>
   );
