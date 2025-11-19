@@ -1,38 +1,60 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Trophy, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 
 const Leagues = () => {
-  // Mock data for leagues
-  const userLeagues = [
-    {
-      id: 1,
-      name: "Weekend Warriors",
-      members: 12,
-      rank: 3,
-      totalMembers: 12,
-      winRate: 68,
+  const { user } = useAuth();
+
+  const { data: userLeagues, isLoading } = useQuery({
+    queryKey: ["user-leagues", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from("league_members")
+        .select(`
+          role,
+          leagues!inner(
+            id,
+            name,
+            description,
+            is_private
+          )
+        `)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      // Get member counts for each league
+      const leaguesWithCounts = await Promise.all(
+        data.map(async (item) => {
+          const { count } = await supabase
+            .from("league_members")
+            .select("*", { count: "exact", head: true })
+            .eq("league_id", item.leagues.id);
+
+          return {
+            id: item.leagues.id,
+            name: item.leagues.name,
+            description: item.leagues.description,
+            role: item.role,
+            totalMembers: count || 0,
+            isPrivate: item.leagues.is_private,
+          };
+        })
+      );
+
+      return leaguesWithCounts;
     },
-    {
-      id: 2,
-      name: "Premier League Fans",
-      members: 24,
-      rank: 7,
-      totalMembers: 24,
-      winRate: 52,
-    },
-    {
-      id: 3,
-      name: "College Buddies",
-      members: 8,
-      rank: 1,
-      totalMembers: 8,
-      winRate: 75,
-    },
-  ];
+    enabled: !!user?.id,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,52 +81,59 @@ const Leagues = () => {
         </div>
 
         {/* Leagues Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {userLeagues.map((league) => (
-            <Card key={league.id} className="hover:shadow-lg transition-shadow cursor-pointer border-border/50">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl">{league.name}</CardTitle>
-                    <CardDescription className="mt-2 flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      {league.totalMembers} members
-                    </CardDescription>
+        {isLoading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="border-border/50">
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {userLeagues?.map((league) => (
+              <Card key={league.id} className="hover:shadow-lg transition-shadow cursor-pointer border-border/50">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl">{league.name}</CardTitle>
+                      <CardDescription className="mt-2 flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        {league.totalMembers} members
+                      </CardDescription>
+                    </div>
+                    {league.role === 'owner' && (
+                      <Badge variant="default" className="gap-1">
+                        <Trophy className="h-3 w-3" />
+                        Owner
+                      </Badge>
+                    )}
                   </div>
-                  {league.rank === 1 && (
-                    <Badge variant="default" className="gap-1">
-                      <Trophy className="h-3 w-3" />
-                      #1
-                    </Badge>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {league.description && (
+                    <p className="text-sm text-muted-foreground">{league.description}</p>
                   )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Your Rank</span>
-                  <span className="font-semibold text-foreground">
-                    #{league.rank} / {league.totalMembers}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <TrendingUp className="h-4 w-4" />
-                    Win Rate
-                  </span>
-                  <span className="font-semibold text-primary">{league.winRate}%</span>
-                </div>
-                <Link to={`/leagues/${league.id}`} className="block w-full mt-4">
-                  <Button variant="outline" className="w-full">
-                    View League
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <Link to={`/leagues/${league.id}`} className="block w-full mt-4">
+                    <Button variant="outline" className="w-full">
+                      View League
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Empty State (hidden when leagues exist) */}
-        {userLeagues.length === 0 && (
+        {!isLoading && userLeagues?.length === 0 && (
           <Card className="border-dashed border-2 border-border/50">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Users className="h-16 w-16 text-muted-foreground mb-4" />
