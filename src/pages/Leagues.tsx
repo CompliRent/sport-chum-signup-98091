@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import { CreateLeagueDialog } from "@/components/CreateLeagueDialog";
+import { JoinLeagueDialog } from "@/components/JoinLeagueDialog";
 
 const Leagues = () => {
   const { user } = useAuth();
@@ -72,10 +73,7 @@ const Leagues = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
           <CreateLeagueDialog />
-          <Button size="lg" variant="outline" className="gap-2">
-            <Users className="h-5 w-5" />
-            Join League
-          </Button>
+          <JoinLeagueDialog />
         </div>
 
         {/* Leagues Grid */}
@@ -141,10 +139,7 @@ const Leagues = () => {
               </p>
               <div className="flex gap-4">
                 <CreateLeagueDialog />
-                <Button size="lg" variant="outline" className="gap-2">
-                  <Users className="h-5 w-5" />
-                  Join League
-                </Button>
+                <JoinLeagueDialog />
               </div>
             </CardContent>
           </Card>
