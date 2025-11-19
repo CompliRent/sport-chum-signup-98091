@@ -2,12 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Users, Trophy, TrendingUp } from "lucide-react";
+import { Users, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
+import { CreateLeagueDialog } from "@/components/CreateLeagueDialog";
 
 const Leagues = () => {
   const { user } = useAuth();
@@ -70,10 +71,7 @@ const Leagues = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
-          <Button size="lg" className="gap-2">
-            <Plus className="h-5 w-5" />
-            Create New League
-          </Button>
+          <CreateLeagueDialog />
           <Button size="lg" variant="outline" className="gap-2">
             <Users className="h-5 w-5" />
             Join League
@@ -142,10 +140,7 @@ const Leagues = () => {
                 Create your first league or join an existing one to start competing with friends!
               </p>
               <div className="flex gap-4">
-                <Button size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  Create League
-                </Button>
+                <CreateLeagueDialog />
                 <Button size="lg" variant="outline" className="gap-2">
                   <Users className="h-5 w-5" />
                   Join League
