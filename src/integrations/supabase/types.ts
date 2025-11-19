@@ -138,7 +138,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_league_member_role: {
+        Args: {
+          _league_id: string
+          _roles: Database["public"]["Enums"]["league_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_league_member: {
+        Args: { _league_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       league_role: "owner" | "admin" | "member"
