@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,10 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Header from "@/components/Header";
 import { LeagueSettingsDialog } from "@/components/LeagueSettingsDialog";
 import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Users, Calendar, DollarSign, Copy, Check } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +31,10 @@ const LeagueDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isLeavingLeague, setIsLeavingLeague] = useState(false);
 
   const { data: league, isLoading } = useQuery({
     queryKey: ["league", id],
@@ -145,6 +159,39 @@ const LeagueDetail = () => {
         description: "Invite code copied to clipboard",
       });
       setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const handleLeaveLeague = async () => {
+    if (!user?.id || !id) return;
+
+    setIsLeavingLeague(true);
+
+    try {
+      const { error } = await supabase
+        .from("league_members")
+        .delete()
+        .eq("league_id", id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Left League",
+        description: `You've left ${league?.name}`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["leagues"] });
+      navigate("/leagues");
+    } catch (error: any) {
+      console.error("Error leaving league:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave league",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLeavingLeague(false);
     }
   };
 
@@ -425,11 +472,38 @@ const LeagueDetail = () => {
                   </div>
                 </div>
                 <Separator />
-                <div className="flex gap-4">
-                  <Button variant="outline" className="flex-1">
-                    Leave League
-                  </Button>
-                </div>
+                {!isOwner && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full">
+                        Leave League
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Leave League?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to leave {league.name}? You'll need an invite code to rejoin if it's private.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleLeaveLeague}
+                          disabled={isLeavingLeague}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isLeavingLeague ? "Leaving..." : "Leave League"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                {isOwner && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    As the league owner, you cannot leave the league. Transfer ownership or delete the league instead.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
