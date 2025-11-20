@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Leagues from "./pages/Leagues";
 import LeagueDetail from "./pages/LeagueDetail";
+import JoinLeague from "./pages/JoinLeague";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <LeagueDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leagues/join/:inviteCode"
+              element={
+                <ProtectedRoute>
+                  <JoinLeague />
                 </ProtectedRoute>
               }
             />
