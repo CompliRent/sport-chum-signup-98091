@@ -51,23 +51,35 @@ export type Database = {
         Row: {
           created_at: string
           id: number
-          league_id: string | null
+          is_completed: boolean | null
+          league_id: string
+          season_year: number
           time_stamp: string | null
+          total_score: number | null
           user_id: string
+          week_number: number
         }
         Insert: {
           created_at?: string
           id?: number
-          league_id?: string | null
+          is_completed?: boolean | null
+          league_id: string
+          season_year?: number
           time_stamp?: string | null
+          total_score?: number | null
           user_id: string
+          week_number?: number
         }
         Update: {
           created_at?: string
           id?: number
-          league_id?: string | null
+          is_completed?: boolean | null
+          league_id?: string
+          season_year?: number
           time_stamp?: string | null
+          total_score?: number | null
           user_id?: string
+          week_number?: number
         }
         Relationships: [
           {
