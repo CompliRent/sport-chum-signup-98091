@@ -25,7 +25,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
+
+// Helper functions
+const formatGameName = (homeTeamId: string, awayTeamId: string) => {
+  return `${formatTeamName(awayTeamId)} @ ${formatTeamName(homeTeamId)}`;
+};
+
+const formatTimeAgo = (dateString: string) => {
+  return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+};
 
 const LeagueDetail = () => {
   const { id } = useParams();
@@ -87,57 +97,132 @@ const LeagueDetail = () => {
     enabled: !!id && !!user?.id,
   });
 
-  // Mock leaderboard data - will be replaced with real data later
-  const leaderboard = [
-    { rank: 1, username: "SportsFanatic", wins: 24, losses: 8, winRate: 75, points: 1240 },
-    { rank: 2, username: "BetMaster99", wins: 22, losses: 10, winRate: 69, points: 1180 },
-    { rank: 3, username: "LuckyStreak", wins: 20, losses: 12, winRate: 63, points: 1090 },
-    { rank: 4, username: "GameDay", wins: 18, losses: 14, winRate: 56, points: 980 },
-    { rank: 5, username: "ProPicker", wins: 17, losses: 15, winRate: 53, points: 920 },
-    { rank: 6, username: "AllInAce", wins: 16, losses: 16, winRate: 50, points: 860 },
-    { rank: 7, username: "WinnerCircle", wins: 15, losses: 17, winRate: 47, points: 810 },
-    { rank: 8, username: "BetSmart", wins: 14, losses: 18, winRate: 44, points: 750 },
-  ];
+  // Fetch leaderboard data from cards
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useQuery({
+    queryKey: ["league-leaderboard", id],
+    queryFn: async () => {
+      if (!id) return [];
 
-  // Mock recent bets data - will be replaced with real data later
-  const recentBets = [
-    {
-      id: 1,
-      username: "SportsFanatic",
-      game: "Lakers vs Warriors",
-      pick: "Lakers -5.5",
-      amount: "$50",
-      status: "won",
-      time: "2 hours ago",
+      // Get all cards for this league with user profiles
+      const { data: cards, error } = await supabase
+        .from("cards")
+        .select(`
+          user_id,
+          total_score,
+          is_completed,
+          profiles!cards_user_id_fkey (username, avatar_url)
+        `)
+        .eq("league_id", id);
+
+      if (error) throw error;
+
+      // Aggregate scores by user
+      const userScores: Record<string, { 
+        username: string; 
+        avatarUrl: string | null;
+        totalScore: number; 
+        wins: number; 
+        losses: number;
+      }> = {};
+
+      cards?.forEach((card: any) => {
+        const userId = card.user_id;
+        if (!userScores[userId]) {
+          userScores[userId] = {
+            username: card.profiles?.username || "Unknown",
+            avatarUrl: card.profiles?.avatar_url,
+            totalScore: 0,
+            wins: 0,
+            losses: 0,
+          };
+        }
+        userScores[userId].totalScore += card.total_score || 0;
+      });
+
+      // Get bet results for win/loss counts
+      const { data: bets } = await supabase
+        .from("bets")
+        .select(`
+          result,
+          cards!bets_card_id_fkey (user_id, league_id)
+        `)
+        .not("result", "is", null);
+
+      bets?.forEach((bet: any) => {
+        if (bet.cards?.league_id === id && userScores[bet.cards.user_id]) {
+          if (bet.result === true) {
+            userScores[bet.cards.user_id].wins++;
+          } else if (bet.result === false) {
+            userScores[bet.cards.user_id].losses++;
+          }
+        }
+      });
+
+      // Convert to array and sort by total score
+      return Object.entries(userScores)
+        .map(([userId, data], index) => ({
+          rank: index + 1,
+          username: data.username,
+          avatarUrl: data.avatarUrl,
+          wins: data.wins,
+          losses: data.losses,
+          winRate: data.wins + data.losses > 0 
+            ? Math.round((data.wins / (data.wins + data.losses)) * 100) 
+            : 0,
+          points: data.totalScore,
+        }))
+        .sort((a, b) => b.points - a.points)
+        .map((item, index) => ({ ...item, rank: index + 1 }));
     },
-    {
-      id: 2,
-      username: "BetMaster99",
-      game: "Cowboys vs Eagles",
-      pick: "Over 48.5",
-      amount: "$30",
-      status: "won",
-      time: "3 hours ago",
+    enabled: !!id,
+  });
+
+  // Fetch recent bets
+  const { data: recentBetsData, isLoading: betsLoading } = useQuery({
+    queryKey: ["league-recent-bets", id],
+    queryFn: async () => {
+      if (!id) return [];
+
+      const { data, error } = await supabase
+        .from("bets")
+        .select(`
+          id,
+          event_id,
+          selected_team_id,
+          home_team_id,
+          away_team_id,
+          line,
+          result,
+          created_at,
+          cards!bets_card_id_fkey (
+            user_id,
+            league_id,
+            profiles!cards_user_id_fkey (username, avatar_url)
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      // Filter to only bets from this league and format
+      return data
+        ?.filter((bet: any) => bet.cards?.league_id === id)
+        .map((bet: any) => ({
+          id: bet.id,
+          username: bet.cards?.profiles?.username || "Unknown",
+          game: formatGameName(bet.home_team_id, bet.away_team_id),
+          pick: formatTeamName(bet.selected_team_id),
+          line: bet.line,
+          status: bet.result === null ? "pending" : bet.result ? "won" : "lost",
+          time: formatTimeAgo(bet.created_at),
+        })) || [];
     },
-    {
-      id: 3,
-      username: "LuckyStreak",
-      game: "Celtics vs Heat",
-      pick: "Heat +3.5",
-      amount: "$40",
-      status: "lost",
-      time: "5 hours ago",
-    },
-    {
-      id: 4,
-      username: "GameDay",
-      game: "Chiefs vs Bills",
-      pick: "Chiefs ML",
-      amount: "$60",
-      status: "pending",
-      time: "1 day ago",
-    },
-  ];
+    enabled: !!id,
+  });
+
+  const leaderboard = leaderboardData || [];
+  const recentBets = recentBetsData || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -404,7 +489,7 @@ const LeagueDetail = () => {
                             <p className="font-medium">{bet.username}</p>
                             <p className="text-sm text-muted-foreground">{bet.game}</p>
                             <p className="text-sm">
-                              <span className="text-foreground font-medium">{bet.pick}</span> · {bet.amount}
+                              <span className="text-foreground font-medium">{bet.pick}</span> · {formatMoneyline(bet.line)}
                             </p>
                             <p className="text-xs text-muted-foreground">{bet.time}</p>
                           </div>
