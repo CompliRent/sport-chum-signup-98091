@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, Edit } from "lucide-react";
+
+const MAX_PICKS = 5;
 
 interface BetSelection {
   eventId: string;
@@ -27,6 +30,7 @@ const Betting = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selections, setSelections] = useState<Record<string, BetSelection>>({});
+  const [isEditing, setIsEditing] = useState(false);
 
   // Fetch league info
   const { data: league } = useQuery({
@@ -58,7 +62,7 @@ const Betting = () => {
   });
 
   // Check for existing card this week
-  const { data: existingCard } = useQuery({
+  const { data: existingCard, isLoading: cardLoading } = useQuery({
     queryKey: ["user-card", leagueId, user?.id],
     queryFn: async () => {
       if (!user?.id || !leagueId) return null;
@@ -77,7 +81,39 @@ const Betting = () => {
     enabled: !!user?.id && !!leagueId,
   });
 
-  // Submit card mutation
+  // Fetch existing bets for the card
+  const { data: existingBets } = useQuery({
+    queryKey: ["card-bets", existingCard?.id],
+    queryFn: async () => {
+      if (!existingCard?.id) return [];
+      const { data, error } = await supabase
+        .from("bets")
+        .select("*")
+        .eq("card_id", existingCard.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!existingCard?.id,
+  });
+
+  // Load existing bets into selections when editing
+  useEffect(() => {
+    if (isEditing && existingBets && existingBets.length > 0) {
+      const loadedSelections: Record<string, BetSelection> = {};
+      existingBets.forEach((bet) => {
+        loadedSelections[bet.event_id] = {
+          eventId: bet.event_id,
+          teamId: bet.selected_team_id,
+          line: Number(bet.line),
+          homeTeamId: bet.home_team_id,
+          awayTeamId: bet.away_team_id,
+        };
+      });
+      setSelections(loadedSelections);
+    }
+  }, [isEditing, existingBets]);
+
+  // Submit/Update card mutation
   const submitCardMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id || !leagueId) throw new Error("Not authenticated");
@@ -89,23 +125,41 @@ const Betting = () => {
         throw new Error("Please select at least one pick");
       }
 
-      // Create the card
-      const { data: card, error: cardError } = await supabase
-        .from("cards")
-        .insert({
-          user_id: user.id,
-          league_id: leagueId,
-          week_number: currentWeek,
-          season_year: new Date().getFullYear(),
-        })
-        .select()
-        .single();
+      if (betsArray.length > MAX_PICKS) {
+        throw new Error(`Maximum ${MAX_PICKS} picks allowed`);
+      }
 
-      if (cardError) throw cardError;
+      let cardId: number;
+
+      if (existingCard && isEditing) {
+        // Update existing card - delete old bets first
+        const { error: deleteError } = await supabase
+          .from("bets")
+          .delete()
+          .eq("card_id", existingCard.id);
+
+        if (deleteError) throw deleteError;
+        cardId = existingCard.id;
+      } else {
+        // Create new card
+        const { data: card, error: cardError } = await supabase
+          .from("cards")
+          .insert({
+            user_id: user.id,
+            league_id: leagueId,
+            week_number: currentWeek,
+            season_year: new Date().getFullYear(),
+          })
+          .select()
+          .single();
+
+        if (cardError) throw cardError;
+        cardId = card.id;
+      }
 
       // Create the bets
       const betsToInsert = betsArray.map((bet) => ({
-        card_id: card.id,
+        card_id: cardId,
         event_id: bet.eventId,
         selected_team_id: bet.teamId,
         home_team_id: bet.homeTeamId,
@@ -119,14 +173,18 @@ const Betting = () => {
 
       if (betsError) throw betsError;
 
-      return card;
+      return cardId;
     },
     onSuccess: () => {
       toast({
-        title: "Card Submitted!",
-        description: "Your picks have been locked in for this week.",
+        title: isEditing ? "Card Updated!" : "Card Submitted!",
+        description: isEditing 
+          ? "Your picks have been updated." 
+          : "Your picks have been locked in for this week.",
       });
       queryClient.invalidateQueries({ queryKey: ["user-card"] });
+      queryClient.invalidateQueries({ queryKey: ["card-bets"] });
+      queryClient.invalidateQueries({ queryKey: ["league-recent-bets"] });
       navigate(`/leagues/${leagueId}`);
     },
     onError: (error: any) => {
@@ -149,6 +207,18 @@ const Betting = () => {
         const { [eventId]: _, ...rest } = prev;
         return rest;
       }
+      
+      // Check if we're at max picks and trying to add a new event
+      const currentCount = Object.keys(prev).length;
+      if (!existing && currentCount >= MAX_PICKS) {
+        toast({
+          title: "Maximum picks reached",
+          description: `You can only select ${MAX_PICKS} picks per card`,
+          variant: "destructive",
+        });
+        return prev;
+      }
+
       // Otherwise, select this team
       return {
         ...prev,
@@ -171,31 +241,71 @@ const Betting = () => {
     return Math.ceil(diff / oneWeek);
   };
 
+  const handleStartEditing = () => {
+    setIsEditing(true);
+  };
+
   const selectionCount = Object.keys(selections).length;
 
-  if (existingCard) {
+  // Show existing card view if not editing
+  if (existingCard && !isEditing && !cardLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-8">
-          <Link to={`/leagues/${leagueId}`}>
-            <Button variant="ghost" size="sm" className="mb-6 gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to League
-            </Button>
-          </Link>
-          <Card className="max-w-md mx-auto">
-            <CardContent className="pt-6 text-center">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">Card Already Submitted</h2>
-              <p className="text-muted-foreground">
-                You've already submitted your picks for this week. Check back next week!
-              </p>
-              <Button className="mt-6" onClick={() => navigate(`/leagues/${leagueId}`)}>
-                View Leaderboard
+        <div className="border-b border-border/40 bg-card/50">
+          <div className="container mx-auto px-4 py-6">
+            <Link to={`/leagues/${leagueId}`}>
+              <Button variant="ghost" size="sm" className="mb-4 gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to {league?.name || "League"}
               </Button>
-            </CardContent>
-          </Card>
+            </Link>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Your Card</h1>
+                <p className="text-muted-foreground mt-2">
+                  Week {existingCard.week_number} • {existingBets?.length || 0} picks
+                </p>
+              </div>
+              <Button onClick={handleStartEditing} variant="outline" className="gap-2">
+                <Edit className="h-4 w-4" />
+                Edit Picks
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <main className="container mx-auto px-4 py-8">
+          {existingBets && existingBets.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {existingBets.map((bet) => {
+                const event = events?.find(e => e.event_id === bet.event_id);
+                return (
+                  <EventCard
+                    key={bet.id}
+                    event={event || {
+                      id: bet.id,
+                      event_id: bet.event_id,
+                      home_team_id: bet.home_team_id,
+                      away_team_id: bet.away_team_id,
+                      home_moneyline: Number(bet.line),
+                      away_moneyline: Number(bet.line),
+                      start_date: new Date().toISOString(),
+                    }}
+                    selectedTeam={bet.selected_team_id}
+                    onSelectTeam={() => {}} // View only
+                    disabled
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">No picks on this card yet</p>
+              </CardContent>
+            </Card>
+          )}
         </main>
       </div>
     );
@@ -215,20 +325,34 @@ const Betting = () => {
           </Link>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Make Your Picks</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                {isEditing ? "Edit Your Picks" : "Make Your Picks"}
+              </h1>
               <p className="text-muted-foreground mt-2">
-                Select the winners for this week's games
+                Select up to {MAX_PICKS} winners for this week's games
               </p>
             </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2">
-              {selectionCount} picks
+            <Badge 
+              variant={selectionCount >= MAX_PICKS ? "destructive" : "secondary"} 
+              className="text-lg px-4 py-2"
+            >
+              {selectionCount}/{MAX_PICKS} picks
             </Badge>
           </div>
         </div>
       </div>
 
       <main className="container mx-auto px-4 py-8">
-        {eventsLoading ? (
+        {selectionCount >= MAX_PICKS && (
+          <Alert className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You've selected the maximum {MAX_PICKS} picks. Deselect a pick to choose a different game.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {eventsLoading || cardLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} className="h-48" />
@@ -243,6 +367,7 @@ const Betting = () => {
                   event={event}
                   selectedTeam={selections[event.event_id]?.teamId || null}
                   onSelectTeam={handleSelectTeam}
+                  disabled={selectionCount >= MAX_PICKS && !selections[event.event_id]}
                 />
               ))}
             </div>
@@ -255,7 +380,7 @@ const Betting = () => {
                       {selectionCount} {selectionCount === 1 ? "pick" : "picks"} selected
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Submit your card to lock in your picks
+                      {isEditing ? "Save changes to update your card" : "Submit your card to lock in your picks"}
                     </p>
                   </div>
                   <Button
@@ -266,8 +391,10 @@ const Betting = () => {
                     {submitCardMutation.isPending ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
+                        {isEditing ? "Saving..." : "Submitting..."}
                       </>
+                    ) : isEditing ? (
+                      "Save Changes"
                     ) : (
                       "Submit Card"
                     )}
