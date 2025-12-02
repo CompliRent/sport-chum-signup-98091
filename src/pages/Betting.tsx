@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
@@ -11,7 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, AlertCircle, Edit } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, Edit, Lock } from "lucide-react";
+import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
 
 const MAX_PICKS = 5;
 
@@ -96,22 +97,48 @@ const Betting = () => {
     enabled: !!existingCard?.id,
   });
 
-  // Load existing bets into selections when editing
+  // Separate locked bets (games started) from editable bets
+  const { lockedBets, editableBetEventIds } = useMemo(() => {
+    if (!existingBets || !events) return { lockedBets: [], editableBetEventIds: new Set<string>() };
+    
+    const now = new Date();
+    const upcomingEventIds = new Set(events.map(e => e.event_id));
+    
+    const locked: typeof existingBets = [];
+    const editableIds = new Set<string>();
+    
+    existingBets.forEach(bet => {
+      if (upcomingEventIds.has(bet.event_id)) {
+        // Event is still upcoming, editable
+        editableIds.add(bet.event_id);
+      } else {
+        // Event has started/passed, locked
+        locked.push(bet);
+      }
+    });
+    
+    return { lockedBets: locked, editableBetEventIds: editableIds };
+  }, [existingBets, events]);
+
+  // Load only editable bets into selections when editing
   useEffect(() => {
-    if (isEditing && existingBets && existingBets.length > 0) {
+    if (isEditing && existingBets && existingBets.length > 0 && events) {
       const loadedSelections: Record<string, BetSelection> = {};
       existingBets.forEach((bet) => {
-        loadedSelections[bet.event_id] = {
-          eventId: bet.event_id,
-          teamId: bet.selected_team_id,
-          line: Number(bet.line),
-          homeTeamId: bet.home_team_id,
-          awayTeamId: bet.away_team_id,
-        };
+        // Only load if the event is still upcoming
+        if (editableBetEventIds.has(bet.event_id)) {
+          loadedSelections[bet.event_id] = {
+            eventId: bet.event_id,
+            teamId: bet.selected_team_id,
+            line: Number(bet.line),
+            homeTeamId: bet.home_team_id,
+            awayTeamId: bet.away_team_id,
+          };
+        }
       });
       setSelections(loadedSelections);
     }
-  }, [isEditing, existingBets]);
+  }, [isEditing, existingBets, events, editableBetEventIds]);
 
   // Submit/Update card mutation
   const submitCardMutation = useMutation({
@@ -120,25 +147,41 @@ const Betting = () => {
 
       const currentWeek = getWeekNumber();
       const betsArray = Object.values(selections);
+      const totalPicks = betsArray.length + lockedBets.length;
 
-      if (betsArray.length === 0) {
+      if (totalPicks === 0) {
         throw new Error("Please select at least one pick");
       }
 
-      if (betsArray.length > MAX_PICKS) {
-        throw new Error(`Maximum ${MAX_PICKS} picks allowed`);
+      if (totalPicks > MAX_PICKS) {
+        throw new Error(`Maximum ${MAX_PICKS} picks allowed (including ${lockedBets.length} locked picks)`);
       }
 
       let cardId: number;
 
       if (existingCard && isEditing) {
-        // Update existing card - delete old bets first
-        const { error: deleteError } = await supabase
-          .from("bets")
-          .delete()
-          .eq("card_id", existingCard.id);
+        // Update existing card - only delete editable bets (not locked ones)
+        const lockedEventIds = lockedBets.map(b => b.event_id);
+        
+        if (lockedEventIds.length > 0) {
+          // Delete only bets that are NOT locked
+          const { error: deleteError } = await supabase
+            .from("bets")
+            .delete()
+            .eq("card_id", existingCard.id)
+            .not("event_id", "in", `(${lockedEventIds.map(id => `"${id}"`).join(",")})`);
 
-        if (deleteError) throw deleteError;
+          if (deleteError) throw deleteError;
+        } else {
+          // No locked bets, delete all
+          const { error: deleteError } = await supabase
+            .from("bets")
+            .delete()
+            .eq("card_id", existingCard.id);
+
+          if (deleteError) throw deleteError;
+        }
+        
         cardId = existingCard.id;
       } else {
         // Create new card
@@ -157,21 +200,23 @@ const Betting = () => {
         cardId = card.id;
       }
 
-      // Create the bets
-      const betsToInsert = betsArray.map((bet) => ({
-        card_id: cardId,
-        event_id: bet.eventId,
-        selected_team_id: bet.teamId,
-        home_team_id: bet.homeTeamId,
-        away_team_id: bet.awayTeamId,
-        line: bet.line,
-      }));
+      // Create only the new/editable bets
+      if (betsArray.length > 0) {
+        const betsToInsert = betsArray.map((bet) => ({
+          card_id: cardId,
+          event_id: bet.eventId,
+          selected_team_id: bet.teamId,
+          home_team_id: bet.homeTeamId,
+          away_team_id: bet.awayTeamId,
+          line: bet.line,
+        }));
 
-      const { error: betsError } = await supabase
-        .from("bets")
-        .insert(betsToInsert);
+        const { error: betsError } = await supabase
+          .from("bets")
+          .insert(betsToInsert);
 
-      if (betsError) throw betsError;
+        if (betsError) throw betsError;
+      }
 
       return cardId;
     },
@@ -208,12 +253,12 @@ const Betting = () => {
         return rest;
       }
       
-      // Check if we're at max picks and trying to add a new event
-      const currentCount = Object.keys(prev).length;
+      // Check if we're at max picks and trying to add a new event (include locked bets in count)
+      const currentCount = Object.keys(prev).length + lockedBets.length;
       if (!existing && currentCount >= MAX_PICKS) {
         toast({
           title: "Maximum picks reached",
-          description: `You can only select ${MAX_PICKS} picks per card`,
+          description: `You can only select ${MAX_PICKS} picks per card${lockedBets.length > 0 ? ` (${lockedBets.length} locked)` : ''}`,
           variant: "destructive",
         });
         return prev;
@@ -246,6 +291,7 @@ const Betting = () => {
   };
 
   const selectionCount = Object.keys(selections).length;
+  const totalPickCount = selectionCount + lockedBets.length;
 
   // Show existing card view if not editing
   if (existingCard && !isEditing && !cardLoading) {
@@ -280,22 +326,32 @@ const Betting = () => {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {existingBets.map((bet) => {
                 const event = events?.find(e => e.event_id === bet.event_id);
+                const isLocked = !event; // If event not found in upcoming, it's locked
                 return (
-                  <EventCard
-                    key={bet.id}
-                    event={event || {
-                      id: bet.id,
-                      event_id: bet.event_id,
-                      home_team_id: bet.home_team_id,
-                      away_team_id: bet.away_team_id,
-                      home_moneyline: Number(bet.line),
-                      away_moneyline: Number(bet.line),
-                      start_date: new Date().toISOString(),
-                    }}
-                    selectedTeam={bet.selected_team_id}
-                    onSelectTeam={() => {}} // View only
-                    disabled
-                  />
+                  <div key={bet.id} className="relative">
+                    {isLocked && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <Badge variant="secondary" className="gap-1">
+                          <Lock className="h-3 w-3" />
+                          Locked
+                        </Badge>
+                      </div>
+                    )}
+                    <EventCard
+                      event={event || {
+                        id: bet.id,
+                        event_id: bet.event_id,
+                        home_team_id: bet.home_team_id,
+                        away_team_id: bet.away_team_id,
+                        home_moneyline: Number(bet.line),
+                        away_moneyline: Number(bet.line),
+                        start_date: new Date().toISOString(),
+                      }}
+                      selectedTeam={bet.selected_team_id}
+                      onSelectTeam={() => {}} // View only
+                      disabled
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -330,24 +386,25 @@ const Betting = () => {
               </h1>
               <p className="text-muted-foreground mt-2">
                 Select up to {MAX_PICKS} winners for this week's games
+                {lockedBets.length > 0 && ` (${lockedBets.length} locked)`}
               </p>
             </div>
             <Badge 
-              variant={selectionCount >= MAX_PICKS ? "destructive" : "secondary"} 
+              variant={totalPickCount >= MAX_PICKS ? "destructive" : "secondary"} 
               className="text-lg px-4 py-2"
             >
-              {selectionCount}/{MAX_PICKS} picks
+              {totalPickCount}/{MAX_PICKS} picks
             </Badge>
           </div>
         </div>
       </div>
 
       <main className="container mx-auto px-4 py-8">
-        {selectionCount >= MAX_PICKS && (
+        {totalPickCount >= MAX_PICKS && (
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You've selected the maximum {MAX_PICKS} picks. Deselect a pick to choose a different game.
+              You've selected the maximum {MAX_PICKS} picks{lockedBets.length > 0 && ` (${lockedBets.length} locked)`}. Deselect a pick to choose a different game.
             </AlertDescription>
           </Alert>
         )}
@@ -360,6 +417,37 @@ const Betting = () => {
           </div>
         ) : events && events.length > 0 ? (
           <>
+            {/* Locked Bets Section */}
+            {isEditing && lockedBets.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold">Locked Picks ({lockedBets.length})</h2>
+                  <span className="text-sm text-muted-foreground">- Games already started</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 opacity-60">
+                  {lockedBets.map((bet) => (
+                    <Card key={bet.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="secondary" className="gap-1">
+                            <Lock className="h-3 w-3" />
+                            Locked
+                          </Badge>
+                        </div>
+                        <p className="font-medium">{formatTeamName(bet.selected_team_id)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatTeamName(bet.away_team_id)} @ {formatTeamName(bet.home_team_id)}
+                        </p>
+                        <p className="text-sm font-mono mt-1">{formatMoneyline(Number(bet.line))}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Editable Events */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
               {events.map((event) => (
                 <EventCard
@@ -367,7 +455,7 @@ const Betting = () => {
                   event={event}
                   selectedTeam={selections[event.event_id]?.teamId || null}
                   onSelectTeam={handleSelectTeam}
-                  disabled={selectionCount >= MAX_PICKS && !selections[event.event_id]}
+                  disabled={totalPickCount >= MAX_PICKS && !selections[event.event_id]}
                 />
               ))}
             </div>
@@ -377,7 +465,8 @@ const Betting = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">
-                      {selectionCount} {selectionCount === 1 ? "pick" : "picks"} selected
+                      {totalPickCount} {totalPickCount === 1 ? "pick" : "picks"} total
+                      {lockedBets.length > 0 && ` (${lockedBets.length} locked, ${selectionCount} editable)`}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {isEditing ? "Save changes to update your card" : "Submit your card to lock in your picks"}
@@ -386,7 +475,7 @@ const Betting = () => {
                   <Button
                     size="lg"
                     onClick={() => submitCardMutation.mutate()}
-                    disabled={selectionCount === 0 || submitCardMutation.isPending}
+                    disabled={(totalPickCount === 0) || submitCardMutation.isPending}
                   >
                     {submitCardMutation.isPending ? (
                       <>
