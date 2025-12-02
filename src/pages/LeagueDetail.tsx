@@ -133,10 +133,10 @@ const LeagueDetail = () => {
       }> = {};
 
       cards.forEach((card) => {
-        const userId = card.user_id;
-        const profile = profileMap.get(userId);
-        if (!userScores[userId]) {
-          userScores[userId] = {
+        const odile = card.user_id;
+        const profile = profileMap.get(odile);
+        if (!userScores[odile]) {
+          userScores[odile] = {
             username: profile?.username || "Unknown",
             avatarUrl: profile?.avatar_url || null,
             totalScore: 0,
@@ -144,12 +144,13 @@ const LeagueDetail = () => {
             losses: 0,
           };
         }
-        userScores[userId].totalScore += card.total_score || 0;
+        userScores[odile].totalScore += card.total_score || 0;
       });
 
       // Convert to array and sort by total score
       return Object.entries(userScores)
-        .map(([userId, data]) => ({
+        .map(([odile, data]) => ({
+          userId: odile,
           rank: 1,
           username: data.username,
           avatarUrl: data.avatarUrl,
@@ -431,8 +432,11 @@ const LeagueDetail = () => {
                 ) : (
                   <div className="space-y-4">
                     {leaderboard.map((member) => (
-                      <div key={member.rank}>
-                        <div className="flex items-center justify-between py-3">
+                      <div key={member.userId}>
+                        <Link 
+                          to={`/leagues/${id}/member/${member.userId}`}
+                          className="flex items-center justify-between py-3 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
+                        >
                           <div className="flex items-center gap-4">
                             <div className="flex items-center justify-center w-8">
                               {member.rank <= 3 ? (
@@ -453,7 +457,7 @@ const LeagueDetail = () => {
                               <AvatarFallback>{member.username.substring(0, 2).toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium">{member.username}</p>
+                              <p className="font-medium hover:underline">{member.username}</p>
                               <p className="text-sm text-muted-foreground">
                                 {member.wins}W - {member.losses}L
                               </p>
@@ -476,7 +480,7 @@ const LeagueDetail = () => {
                               <p className="font-bold text-lg">{member.points}</p>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                         {member.rank < leaderboard.length && <Separator />}
                       </div>
                     ))}

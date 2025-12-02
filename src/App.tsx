@@ -12,6 +12,7 @@ import LeagueDetail from "./pages/LeagueDetail";
 import JoinLeague from "./pages/JoinLeague";
 import Profile from "./pages/Profile";
 import Betting from "./pages/Betting";
+import MemberCard from "./pages/MemberCard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Betting />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leagues/:leagueId/member/:userId"
+              element={
+                <ProtectedRoute>
+                  <MemberCard />
                 </ProtectedRoute>
               }
             />
