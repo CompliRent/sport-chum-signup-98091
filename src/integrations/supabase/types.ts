@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      bets: {
+        Row: {
+          away_team_id: string
+          created_at: string
+          event_id: string
+          home_team_id: string
+          id: number
+          line: number
+          result: boolean | null
+          selected_team_id: string
+        }
+        Insert: {
+          away_team_id: string
+          created_at?: string
+          event_id: string
+          home_team_id: string
+          id?: number
+          line: number
+          result?: boolean | null
+          selected_team_id: string
+        }
+        Update: {
+          away_team_id?: string
+          created_at?: string
+          event_id?: string
+          home_team_id?: string
+          id?: number
+          line?: number
+          result?: boolean | null
+          selected_team_id?: string
+        }
+        Relationships: []
+      }
+      cards: {
+        Row: {
+          created_at: string
+          id: number
+          league_id: string | null
+          time_stamp: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          league_id?: string | null
+          time_stamp?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          league_id?: string | null
+          time_stamp?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_members: {
         Row: {
           id: string
@@ -130,6 +195,39 @@ export type Database = {
           phone_number?: string | null
           updated_at?: string
           username?: string
+        }
+        Relationships: []
+      }
+      upcoming_events: {
+        Row: {
+          away_moneyline: number
+          away_team_id: string
+          created_at: string
+          event_id: string
+          home_moneyline: number
+          home_team_id: string
+          id: number
+          start_date: string
+        }
+        Insert: {
+          away_moneyline: number
+          away_team_id: string
+          created_at?: string
+          event_id: string
+          home_moneyline: number
+          home_team_id: string
+          id?: number
+          start_date: string
+        }
+        Update: {
+          away_moneyline?: number
+          away_team_id?: string
+          created_at?: string
+          event_id?: string
+          home_moneyline?: number
+          home_team_id?: string
+          id?: number
+          start_date?: string
         }
         Relationships: []
       }
