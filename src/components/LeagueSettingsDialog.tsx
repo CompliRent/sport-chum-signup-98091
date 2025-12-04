@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,6 +16,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -26,8 +38,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Settings } from "lucide-react";
+import { Settings, Trash2, Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(3, "League name must be at least 3 characters").max(50),
@@ -54,8 +67,10 @@ export function LeagueSettingsDialog({
   currentMaxMembers,
 }: LeagueSettingsDialogProps) {
   const [open, setOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -88,6 +103,43 @@ export function LeagueSettingsDialog({
       });
       queryClient.invalidateQueries({ queryKey: ["league", leagueId] });
       setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLeague = useMutation({
+    mutationFn: async () => {
+      // First delete all league members
+      const { error: membersError } = await supabase
+        .from("league_members")
+        .delete()
+        .eq("league_id", leagueId);
+      
+      if (membersError) throw membersError;
+
+      // Then delete the league
+      const { error } = await supabase
+        .from("leagues")
+        .delete()
+        .eq("id", leagueId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "League deleted",
+        description: "The league has been permanently deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["leagues"] });
+      queryClient.invalidateQueries({ queryKey: ["user-leagues"] });
+      setOpen(false);
+      navigate("/leagues");
     },
     onError: (error: Error) => {
       toast({
@@ -212,6 +264,55 @@ export function LeagueSettingsDialog({
             </DialogFooter>
           </form>
         </Form>
+
+        <Separator className="my-6" />
+
+        {/* Danger Zone */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-destructive">Danger Zone</h3>
+          <div className="flex items-center justify-between rounded-lg border border-destructive/50 p-4">
+            <div className="space-y-0.5">
+              <p className="font-medium">Delete League</p>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this league and all its data
+              </p>
+            </div>
+            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete "{currentName}"?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the league,
+                    remove all members, and delete all associated cards and bets.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteLeague.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteLeague.isPending}
+                  >
+                    {deleteLeague.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      "Delete League"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
