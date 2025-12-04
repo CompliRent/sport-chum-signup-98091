@@ -166,8 +166,8 @@ const MemberCard = () => {
 
       <main className="container mx-auto px-4 py-8">
         {/* Stats Summary */}
-        {bets && bets.length > 0 && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
+        {memberCard && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <Card>
               <CardContent className="pt-6 text-center">
                 <Trophy className="h-8 w-8 text-green-500 mx-auto mb-2" />
@@ -187,6 +187,24 @@ const MemberCard = () => {
                 <Clock className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
                 <p className="text-2xl font-bold">{pending}</p>
                 <p className="text-sm text-muted-foreground">Pending</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="h-8 w-8 mx-auto mb-2 flex items-center justify-center text-primary font-bold text-lg">%</div>
+                <p className="text-2xl font-bold">
+                  {wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0}%
+                </p>
+                <p className="text-sm text-muted-foreground">Win Rate</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="pt-6 text-center">
+                <div className="h-8 w-8 mx-auto mb-2 flex items-center justify-center text-primary">
+                  <span className="text-xl font-bold">★</span>
+                </div>
+                <p className="text-2xl font-bold text-primary">{memberCard.total_score || 0}</p>
+                <p className="text-sm text-muted-foreground">Points</p>
               </CardContent>
             </Card>
           </div>
