@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Trophy, CheckCircle, XCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { formatWeekDateRange } from "@/lib/weekUtils";
 
 interface CardHistoryProps {
   userId?: string;
@@ -43,14 +44,14 @@ export const CardHistory = ({
 
       if (!data || data.length === 0) return [];
 
-      // Get league names if needed
+      // Get league info (name and created_at for week calculation)
       const leagueIds = [...new Set(data.map(c => c.league_id))];
       const { data: leagues } = await supabase
         .from("leagues")
-        .select("id, name")
+        .select("id, name, created_at")
         .in("id", leagueIds);
 
-      const leagueMap = new Map(leagues?.map(l => [l.id, l.name]) || []);
+      const leagueMap = new Map(leagues?.map(l => [l.id, { name: l.name, created_at: l.created_at }]) || []);
 
       // Get user profiles if showing multiple users (league view)
       let profileMap = new Map();
@@ -80,12 +81,18 @@ export const CardHistory = ({
         else betStats[bet.card_id].pending++;
       });
 
-      return data.map(card => ({
-        ...card,
-        leagueName: leagueMap.get(card.league_id) || "Unknown League",
-        username: profileMap.get(card.user_id) || null,
-        stats: betStats[card.id] || { wins: 0, losses: 0, pending: 0 },
-      }));
+      return data.map(card => {
+        const leagueInfo = leagueMap.get(card.league_id);
+        const dateRange = leagueInfo ? formatWeekDateRange(leagueInfo.created_at, card.week_number) : "";
+        return {
+          ...card,
+          leagueName: leagueInfo?.name || "Unknown League",
+          leagueCreatedAt: leagueInfo?.created_at || null,
+          dateRange,
+          username: profileMap.get(card.user_id) || null,
+          stats: betStats[card.id] || { wins: 0, losses: 0, pending: 0 },
+        };
+      });
     },
     enabled: !!(userId || leagueId),
   });
@@ -148,6 +155,7 @@ export const CardHistory = ({
                     <div className="flex items-center gap-2">
                       <p className="font-medium">
                         {card.username ? `${card.username} - ` : ""}Week {card.week_number}
+                        {card.dateRange && <span className="text-muted-foreground font-normal">({card.dateRange})</span>}
                       </p>
                       {showLeagueName && (
                         <Badge variant="outline" className="text-xs">

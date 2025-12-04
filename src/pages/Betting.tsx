@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, AlertCircle, Edit, Lock } from "lucide-react";
 import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
+import { getLeagueWeekNumber, getLeagueSeasonYear, formatWeekDateRange } from "@/lib/weekUtils";
 
 const MAX_PICKS = 5;
 
@@ -62,24 +63,28 @@ const Betting = () => {
     },
   });
 
+  // Calculate current week based on league creation date
+  const currentWeek = league ? getLeagueWeekNumber(league.created_at) : 1;
+  const currentSeasonYear = league ? getLeagueSeasonYear(league.created_at, currentWeek) : new Date().getFullYear();
+  const weekDateRange = league ? formatWeekDateRange(league.created_at, currentWeek) : "";
+
   // Check for existing card this week
   const { data: existingCard, isLoading: cardLoading } = useQuery({
-    queryKey: ["user-card", leagueId, user?.id],
+    queryKey: ["user-card", leagueId, user?.id, currentWeek, currentSeasonYear],
     queryFn: async () => {
-      if (!user?.id || !leagueId) return null;
-      const currentWeek = getWeekNumber();
+      if (!user?.id || !leagueId || !league) return null;
       const { data, error } = await supabase
         .from("cards")
         .select("*")
         .eq("user_id", user.id)
         .eq("league_id", leagueId)
         .eq("week_number", currentWeek)
-        .eq("season_year", new Date().getFullYear())
+        .eq("season_year", currentSeasonYear)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id && !!leagueId,
+    enabled: !!user?.id && !!leagueId && !!league,
   });
 
   // Fetch existing bets for the card
@@ -143,9 +148,8 @@ const Betting = () => {
   // Submit/Update card mutation
   const submitCardMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id || !leagueId) throw new Error("Not authenticated");
+      if (!user?.id || !leagueId || !league) throw new Error("Not authenticated");
 
-      const currentWeek = getWeekNumber();
       const betsArray = Object.values(selections);
       const totalPicks = betsArray.length + lockedBets.length;
 
@@ -159,7 +163,8 @@ const Betting = () => {
 
       let cardId: number;
 
-      if (existingCard && isEditing) {
+      // Always check for existing card (handles race conditions)
+      if (existingCard) {
         // Update existing card - only delete editable bets (not locked ones)
         const lockedEventIds = lockedBets.map(b => b.event_id);
         
@@ -191,12 +196,18 @@ const Betting = () => {
             user_id: user.id,
             league_id: leagueId,
             week_number: currentWeek,
-            season_year: new Date().getFullYear(),
+            season_year: currentSeasonYear,
           })
           .select()
           .single();
 
-        if (cardError) throw cardError;
+        if (cardError) {
+          // Handle unique constraint violation gracefully
+          if (cardError.code === '23505') {
+            throw new Error("You already have a card for this week. Please refresh and edit your existing card.");
+          }
+          throw cardError;
+        }
         cardId = card.id;
       }
 
@@ -278,13 +289,6 @@ const Betting = () => {
     });
   };
 
-  const getWeekNumber = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now.getTime() - start.getTime();
-    const oneWeek = 604800000;
-    return Math.ceil(diff / oneWeek);
-  };
 
   const handleStartEditing = () => {
     setIsEditing(true);
@@ -310,7 +314,7 @@ const Betting = () => {
               <div>
                 <h1 className="text-3xl font-bold text-foreground">Your Card</h1>
                 <p className="text-muted-foreground mt-2">
-                  Week {existingCard.week_number} • {existingBets?.length || 0} picks
+                  Week {existingCard.week_number} ({weekDateRange}) • {existingBets?.length || 0} picks
                 </p>
               </div>
               <Button onClick={handleStartEditing} variant="outline" className="gap-2">

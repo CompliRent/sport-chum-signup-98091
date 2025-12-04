@@ -9,24 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Lock, Trophy, CheckCircle, XCircle, Clock } from "lucide-react";
 import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
+import { getLeagueWeekNumber, formatWeekDateRange } from "@/lib/weekUtils";
 
 const MemberCard = () => {
   const { leagueId, userId } = useParams();
   const [searchParams] = useSearchParams();
-  
-  const getWeekNumber = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now.getTime() - start.getTime();
-    const oneWeek = 604800000;
-    return Math.ceil(diff / oneWeek);
-  };
 
-  // Get week/year from URL params or use current
-  const selectedWeek = searchParams.get("week") ? parseInt(searchParams.get("week")!) : getWeekNumber();
-  const selectedYear = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
-
-  // Fetch league info
+  // Fetch league info first (needed for week calculation)
   const { data: league } = useQuery({
     queryKey: ["league", leagueId],
     queryFn: async () => {
@@ -40,6 +29,16 @@ const MemberCard = () => {
     },
     enabled: !!leagueId,
   });
+
+  // Calculate current week based on league creation date
+  const currentWeek = league ? getLeagueWeekNumber(league.created_at) : 1;
+
+  // Get week/year from URL params or use current league week
+  const selectedWeek = searchParams.get("week") ? parseInt(searchParams.get("week")!) : currentWeek;
+  const selectedYear = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
+  
+  // Get date range for display
+  const weekDateRange = league ? formatWeekDateRange(league.created_at, selectedWeek) : "";
 
   // Fetch member profile
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -157,7 +156,7 @@ const MemberCard = () => {
               <div>
                 <h1 className="text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
                 <p className="text-muted-foreground">
-                  Week {selectedWeek}, {selectedYear} • {bets?.length || 0} picks
+                  Week {selectedWeek} ({weekDateRange}) • {bets?.length || 0} picks
                 </p>
               </div>
             </div>
