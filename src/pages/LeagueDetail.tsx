@@ -380,16 +380,16 @@ const LeagueDetail = () => {
               Back to Leagues
             </Button>
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{league.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{league.name}</h1>
               <p className="text-muted-foreground mt-2">{league.description || "No description"}</p>
             </div>
             <div className="flex items-center gap-2">
               <Link to={`/leagues/${id}/betting`}>
                 <Button className="gap-2">
                   <Ticket className="h-4 w-4" />
-                  Make Picks
+                  <span className="hidden sm:inline">Make</span> Picks
                 </Button>
               </Link>
               {isOwner && (
@@ -408,7 +408,7 @@ const LeagueDetail = () => {
 
       <main className="container mx-auto px-4 py-8">
         {/* League Stats */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -457,12 +457,12 @@ const LeagueDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="leaderboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="bets">Recent Bets</TabsTrigger>
-            <TabsTrigger value="info">League Info</TabsTrigger>
+          <TabsList className="w-full flex overflow-x-auto mb-6 h-auto flex-wrap sm:flex-nowrap">
+            <TabsTrigger value="leaderboard" className="flex-1 min-w-fit text-xs sm:text-sm">Leaderboard</TabsTrigger>
+            <TabsTrigger value="members" className="flex-1 min-w-fit text-xs sm:text-sm">Members</TabsTrigger>
+            <TabsTrigger value="history" className="flex-1 min-w-fit text-xs sm:text-sm">History</TabsTrigger>
+            <TabsTrigger value="bets" className="flex-1 min-w-fit text-xs sm:text-sm">Bets</TabsTrigger>
+            <TabsTrigger value="info" className="flex-1 min-w-fit text-xs sm:text-sm">Info</TabsTrigger>
           </TabsList>
 
           {/* Leaderboard Tab */}

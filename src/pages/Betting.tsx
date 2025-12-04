@@ -310,14 +310,14 @@ const Betting = () => {
                 Back to {league?.name || "League"}
               </Button>
             </Link>
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Your Card</h1>
-                <p className="text-muted-foreground mt-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Your Card</h1>
+                <p className="text-sm sm:text-base text-muted-foreground mt-2">
                   Week {existingCard.week_number} ({weekDateRange}) • {existingBets?.length || 0} picks
                 </p>
               </div>
-              <Button onClick={handleStartEditing} variant="outline" className="gap-2">
+              <Button onClick={handleStartEditing} variant="outline" className="gap-2 self-start">
                 <Edit className="h-4 w-4" />
                 Edit Picks
               </Button>
@@ -383,19 +383,19 @@ const Betting = () => {
               Back to {league?.name || "League"}
             </Button>
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                 {isEditing ? "Edit Your Picks" : "Make Your Picks"}
               </h1>
-              <p className="text-muted-foreground mt-2">
+              <p className="text-sm sm:text-base text-muted-foreground mt-2">
                 Select up to {MAX_PICKS} winners for this week's games
                 {lockedBets.length > 0 && ` (${lockedBets.length} locked)`}
               </p>
             </div>
             <Badge 
               variant={totalPickCount >= MAX_PICKS ? "destructive" : "secondary"} 
-              className="text-lg px-4 py-2"
+              className="text-base sm:text-lg px-3 sm:px-4 py-1.5 sm:py-2 self-start"
             >
               {totalPickCount}/{MAX_PICKS} picks
             </Badge>

@@ -150,23 +150,23 @@ const MemberCard = () => {
 
           {isLoading ? (
             <div className="flex items-center gap-4">
-              <Skeleton className="h-16 w-16 rounded-full" />
+              <Skeleton className="h-12 w-12 sm:h-16 sm:w-16 rounded-full" />
               <div>
-                <Skeleton className="h-8 w-48 mb-2" />
-                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-6 sm:h-8 w-32 sm:w-48 mb-2" />
+                <Skeleton className="h-4 w-24 sm:w-32" />
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarFallback className="text-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
+                  <AvatarFallback className="text-lg sm:text-xl">
                     {profile?.username?.substring(0, 2).toUpperCase() || "??"}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
-                  <p className="text-muted-foreground">
+                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
+                  <p className="text-sm sm:text-base text-muted-foreground">
                     {bets?.length || 0} picks
                   </p>
                 </div>

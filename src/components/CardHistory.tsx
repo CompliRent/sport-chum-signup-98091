@@ -146,46 +146,46 @@ export const CardHistory = ({
               to={`/leagues/${card.league_id}/member/${card.user_id}?week=${card.week_number}&year=${card.season_year}`}
               className="block"
             >
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
-                    <span className="text-lg font-bold text-primary">W{card.week_number}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors gap-3">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 shrink-0">
+                    <span className="text-sm sm:text-lg font-bold text-primary">W{card.week_number}</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                      <p className="font-medium text-sm sm:text-base truncate">
                         {card.username ? `${card.username} - ` : ""}Week {card.week_number}
-                        {card.dateRange && <span className="text-muted-foreground font-normal">({card.dateRange})</span>}
                       </p>
                       {showLeagueName && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs shrink-0">
                           {card.leagueName}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {card.season_year} Season • {format(new Date(card.created_at), "MMM d, yyyy")}
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {card.dateRange && <span>{card.dateRange} • </span>}
+                      {card.season_year}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-13 sm:pl-0">
+                  <div className="flex items-center gap-2 sm:gap-3 text-sm">
                     <span className="flex items-center gap-1 text-green-500">
-                      <CheckCircle className="h-4 w-4" />
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       {card.stats.wins}
                     </span>
                     <span className="flex items-center gap-1 text-red-500">
-                      <XCircle className="h-4 w-4" />
+                      <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       {card.stats.losses}
                     </span>
                     {card.stats.pending > 0 && (
                       <span className="flex items-center gap-1 text-yellow-500">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                         {card.stats.pending}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <Trophy className="h-4 w-4 text-primary" />
                     <span className="font-bold">{card.total_score || 0}</span>
                   </div>

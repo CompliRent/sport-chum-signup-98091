@@ -32,18 +32,18 @@ export const WeekNavigation = ({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       <Button
         variant="outline"
         size="icon"
         onClick={handlePrev}
         disabled={!canGoPrev}
-        className="h-8 w-8"
+        className="h-8 w-8 shrink-0"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <div className="text-center min-w-[140px]">
-        <p className="font-medium">Week {selectedWeek}</p>
+      <div className="text-center min-w-[100px] sm:min-w-[140px]">
+        <p className="font-medium text-sm sm:text-base">Week {selectedWeek}</p>
         {weekDateRange && (
           <p className="text-xs text-muted-foreground">{weekDateRange}</p>
         )}
@@ -53,7 +53,7 @@ export const WeekNavigation = ({
         size="icon"
         onClick={handleNext}
         disabled={!canGoNext}
-        className="h-8 w-8"
+        className="h-8 w-8 shrink-0"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

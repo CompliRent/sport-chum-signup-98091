@@ -189,7 +189,7 @@ const Profile = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
         {/* Overall Stats */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-4">
             <Card>
               <CardContent className="pt-6 text-center">
                 <Users className="h-6 w-6 text-primary mx-auto mb-2" />
