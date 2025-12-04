@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import Header from "@/components/Header";
 import { LeagueSettingsDialog } from "@/components/LeagueSettingsDialog";
+import { CardHistory } from "@/components/CardHistory";
 import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Users, Calendar, DollarSign, Copy, Check, Ticket } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -456,9 +457,10 @@ const LeagueDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="leaderboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="bets">Recent Bets</TabsTrigger>
             <TabsTrigger value="info">League Info</TabsTrigger>
           </TabsList>
@@ -743,6 +745,15 @@ const LeagueDetail = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history">
+            <CardHistory 
+              leagueId={id}
+              title="Card History"
+              description="View all past betting cards from league members"
+            />
           </TabsContent>
         </Tabs>
       </main>

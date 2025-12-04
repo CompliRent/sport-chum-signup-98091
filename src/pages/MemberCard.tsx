@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,19 @@ import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
 
 const MemberCard = () => {
   const { leagueId, userId } = useParams();
+  const [searchParams] = useSearchParams();
+  
+  const getWeekNumber = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff = now.getTime() - start.getTime();
+    const oneWeek = 604800000;
+    return Math.ceil(diff / oneWeek);
+  };
+
+  // Get week/year from URL params or use current
+  const selectedWeek = searchParams.get("week") ? parseInt(searchParams.get("week")!) : getWeekNumber();
+  const selectedYear = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
 
   // Fetch league info
   const { data: league } = useQuery({
@@ -43,19 +56,18 @@ const MemberCard = () => {
     enabled: !!userId,
   });
 
-  // Fetch member's card for current week
+  // Fetch member's card for selected week
   const { data: memberCard, isLoading: cardLoading } = useQuery({
-    queryKey: ["member-card", leagueId, userId],
+    queryKey: ["member-card", leagueId, userId, selectedWeek, selectedYear],
     queryFn: async () => {
       if (!leagueId || !userId) return null;
-      const currentWeek = getWeekNumber();
       const { data, error } = await supabase
         .from("cards")
         .select("*")
         .eq("user_id", userId)
         .eq("league_id", leagueId)
-        .eq("week_number", currentWeek)
-        .eq("season_year", new Date().getFullYear())
+        .eq("week_number", selectedWeek)
+        .eq("season_year", selectedYear)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -90,14 +102,6 @@ const MemberCard = () => {
       return data;
     },
   });
-
-  const getWeekNumber = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now.getTime() - start.getTime();
-    const oneWeek = 604800000;
-    return Math.ceil(diff / oneWeek);
-  };
 
   const upcomingEventIds = new Set(upcomingEvents?.map(e => e.event_id) || []);
 
@@ -153,7 +157,7 @@ const MemberCard = () => {
               <div>
                 <h1 className="text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
                 <p className="text-muted-foreground">
-                  Week {memberCard?.week_number || getWeekNumber()} • {bets?.length || 0} picks
+                  Week {selectedWeek}, {selectedYear} • {bets?.length || 0} picks
                 </p>
               </div>
             </div>

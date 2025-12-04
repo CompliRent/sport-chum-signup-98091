@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
+import { CardHistory } from "@/components/CardHistory";
 
 const profileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(30),
@@ -125,7 +126,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-4">
@@ -248,6 +249,15 @@ const Profile = () => {
             </Form>
           </CardContent>
         </Card>
+
+        {user && (
+          <CardHistory 
+            userId={user.id} 
+            showLeagueName={true}
+            title="My Card History"
+            description="View all your past betting cards across leagues"
+          />
+        )}
       </div>
     </div>
   );
