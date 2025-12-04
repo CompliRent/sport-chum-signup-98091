@@ -180,7 +180,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
   const handlePrevWeek = () => setSelectedWeek((w) => Math.max(1, w - 1));
   const handleNextWeek = () => setSelectedWeek((w) => Math.min(currentWeek, w + 1));
 
-  const renderLeaderboard = (data: LeaderboardEntry[] | undefined, isLoading: boolean, showWeeksPlayed = false) => {
+  const renderLeaderboard = (data: LeaderboardEntry[] | undefined, isLoading: boolean, showWeeksPlayed = false, isPastWeek = false) => {
     if (isLoading) {
       return (
         <div className="space-y-4">
@@ -195,13 +195,19 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
       return (
         <div className="text-center py-8">
           <Trophy className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No picks submitted yet</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Be the first to make your picks!
+          <p className="text-muted-foreground">
+            {isPastWeek ? "No picks were submitted for this week" : "No picks submitted yet"}
           </p>
-          <Link to={`/leagues/${leagueId}/betting`}>
-            <Button className="mt-4">Make Picks</Button>
-          </Link>
+          {!isPastWeek && (
+            <>
+              <p className="text-sm text-muted-foreground mt-1">
+                Be the first to make your picks!
+              </p>
+              <Link to={`/leagues/${leagueId}/betting`}>
+                <Button className="mt-4">Make Picks</Button>
+              </Link>
+            </>
+          )}
         </div>
       );
     }
@@ -312,7 +318,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            {renderLeaderboard(weeklyData, weeklyLoading)}
+            {renderLeaderboard(weeklyData, weeklyLoading, false, selectedWeek < currentWeek)}
           </TabsContent>
 
           <TabsContent value="alltime">
