@@ -167,10 +167,10 @@ export function LeagueSettingsDialog({
 
       if (newOwnerError) throw newOwnerError;
 
-      // Update current owner to 'admin' role
+      // Update current owner to 'member' role
       const { error: oldOwnerError } = await supabase
         .from("league_members")
-        .update({ role: "admin" })
+        .update({ role: "member" })
         .eq("league_id", leagueId)
         .eq("user_id", user.id);
 
@@ -187,7 +187,7 @@ export function LeagueSettingsDialog({
     onSuccess: () => {
       toast({
         title: "Ownership transferred",
-        description: "You are now an admin of this league.",
+        description: "You are now a member of this league.",
       });
       queryClient.invalidateQueries({ queryKey: ["league", leagueId] });
       queryClient.invalidateQueries({ queryKey: ["league-membership", leagueId] });
@@ -365,7 +365,7 @@ export function LeagueSettingsDialog({
               <h3 className="text-lg font-semibold">Transfer Ownership</h3>
               <div className="flex flex-col gap-3 rounded-lg border p-4">
                 <p className="text-sm text-muted-foreground">
-                  Transfer ownership to another member. You'll become an admin.
+                  Transfer ownership to another member. You'll become a regular member.
                 </p>
                 <Select value={selectedNewOwner} onValueChange={setSelectedNewOwner}>
                   <SelectTrigger>
@@ -396,7 +396,7 @@ export function LeagueSettingsDialog({
                       <AlertDialogDescription>
                         Are you sure you want to transfer ownership to{" "}
                         <strong>{members.find(m => m.userId === selectedNewOwner)?.username}</strong>?
-                        You will become an admin and lose owner privileges.
+                        You will become a regular member and lose owner privileges.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
