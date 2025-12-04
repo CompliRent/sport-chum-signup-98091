@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trophy, XCircle, Clock, Users, TrendingUp } from "lucide-react";
 import { CardHistory } from "@/components/CardHistory";
 
 const profileSchema = z.object({
@@ -48,6 +49,65 @@ const Profile = () => {
       date_of_birth: "",
       avatar_url: "",
     },
+  });
+
+  // Fetch overall stats
+  const { data: stats } = useQuery({
+    queryKey: ["user-overall-stats", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+
+      // Get league count
+      const { count: leagueCount } = await supabase
+        .from("league_members")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      // Get all user cards
+      const { data: cards } = await supabase
+        .from("cards")
+        .select("id, total_score")
+        .eq("user_id", user.id);
+
+      if (!cards || cards.length === 0) {
+        return {
+          leagueCount: leagueCount || 0,
+          totalPoints: 0,
+          wins: 0,
+          losses: 0,
+          pending: 0,
+          winRate: 0,
+        };
+      }
+
+      const cardIds = cards.map(c => c.id);
+      const totalPoints = cards.reduce((sum, c) => sum + (c.total_score || 0), 0);
+
+      // Get bets for all cards
+      const { data: bets } = await supabase
+        .from("bets")
+        .select("result")
+        .in("card_id", cardIds);
+
+      let wins = 0, losses = 0, pending = 0;
+      bets?.forEach(bet => {
+        if (bet.result === true) wins++;
+        else if (bet.result === false) losses++;
+        else pending++;
+      });
+
+      const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
+
+      return {
+        leagueCount: leagueCount || 0,
+        totalPoints,
+        wins,
+        losses,
+        pending,
+        winRate,
+      };
+    },
+    enabled: !!user?.id,
   });
 
   useEffect(() => {
@@ -127,6 +187,54 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
+        {/* Overall Stats */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Users className="h-6 w-6 text-primary mx-auto mb-2" />
+                <p className="text-2xl font-bold">{stats.leagueCount}</p>
+                <p className="text-xs text-muted-foreground">Leagues</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Trophy className="h-6 w-6 text-green-500 mx-auto mb-2" />
+                <p className="text-2xl font-bold">{stats.wins}</p>
+                <p className="text-xs text-muted-foreground">Wins</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <XCircle className="h-6 w-6 text-red-500 mx-auto mb-2" />
+                <p className="text-2xl font-bold">{stats.losses}</p>
+                <p className="text-xs text-muted-foreground">Losses</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Clock className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
+                <p className="text-2xl font-bold">{stats.pending}</p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <TrendingUp className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+                <p className="text-2xl font-bold">{stats.winRate}%</p>
+                <p className="text-xs text-muted-foreground">Win Rate</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="pt-6 text-center">
+                <span className="text-xl text-primary">★</span>
+                <p className="text-2xl font-bold text-primary">{stats.totalPoints}</p>
+                <p className="text-xs text-muted-foreground">Total Points</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <div className="flex items-center gap-4">
