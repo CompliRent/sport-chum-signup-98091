@@ -206,15 +206,7 @@ export function LeagueSettingsDialog({
 
   const deleteLeague = useMutation({
     mutationFn: async () => {
-      // First delete all league members
-      const { error: membersError } = await supabase
-        .from("league_members")
-        .delete()
-        .eq("league_id", leagueId);
-      
-      if (membersError) throw membersError;
-
-      // Then delete the league
+      // Cascade delete handles members, cards, and bets automatically
       const { error } = await supabase
         .from("leagues")
         .delete()
