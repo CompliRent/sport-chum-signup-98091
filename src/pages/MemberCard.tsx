@@ -1,4 +1,4 @@
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useParams, Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -6,14 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WeekNavigation } from "@/components/WeekNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Lock, Trophy, CheckCircle, XCircle, Clock } from "lucide-react";
 import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
-import { getLeagueWeekNumber, formatWeekDateRange } from "@/lib/weekUtils";
+import { getLeagueWeekNumber, formatWeekDateRange, getLeagueSeasonYear } from "@/lib/weekUtils";
 
 const MemberCard = () => {
   const { leagueId, userId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Fetch league info first (needed for week calculation)
   const { data: league } = useQuery({
@@ -35,10 +37,18 @@ const MemberCard = () => {
 
   // Get week/year from URL params or use current league week
   const selectedWeek = searchParams.get("week") ? parseInt(searchParams.get("week")!) : currentWeek;
-  const selectedYear = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
+  const selectedYear = searchParams.get("year") 
+    ? parseInt(searchParams.get("year")!) 
+    : league ? getLeagueSeasonYear(league.created_at, selectedWeek) : new Date().getFullYear();
   
   // Get date range for display
   const weekDateRange = league ? formatWeekDateRange(league.created_at, selectedWeek) : "";
+
+  // Handle week navigation
+  const handleWeekChange = (week: number, year: number) => {
+    const newYear = league ? getLeagueSeasonYear(league.created_at, week) : year;
+    navigate(`/leagues/${leagueId}/member/${userId}?week=${week}&year=${newYear}`);
+  };
 
   // Fetch member profile
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -147,18 +157,27 @@ const MemberCard = () => {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarFallback className="text-xl">
-                  {profile?.username?.substring(0, 2).toUpperCase() || "??"}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
-                <p className="text-muted-foreground">
-                  Week {selectedWeek} ({weekDateRange}) • {bets?.length || 0} picks
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="text-xl">
+                    {profile?.username?.substring(0, 2).toUpperCase() || "??"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
+                  <p className="text-muted-foreground">
+                    {bets?.length || 0} picks
+                  </p>
+                </div>
               </div>
+              <WeekNavigation
+                currentWeek={currentWeek}
+                selectedWeek={selectedWeek}
+                selectedYear={selectedYear}
+                onWeekChange={handleWeekChange}
+                weekDateRange={weekDateRange}
+              />
             </div>
           )}
         </div>
