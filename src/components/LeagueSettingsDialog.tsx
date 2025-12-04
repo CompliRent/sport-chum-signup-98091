@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,12 +35,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Trash2, Loader2 } from "lucide-react";
+import { Settings, Trash2, Loader2, UserCheck } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(3, "League name must be at least 3 characters").max(50),
@@ -68,6 +75,8 @@ export function LeagueSettingsDialog({
 }: LeagueSettingsDialogProps) {
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState(false);
+  const [selectedNewOwner, setSelectedNewOwner] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -80,6 +89,36 @@ export function LeagueSettingsDialog({
       is_private: currentIsPrivate,
       max_members: currentMaxMembers || 50,
     },
+  });
+
+  // Fetch league members for ownership transfer
+  const { data: members } = useQuery({
+    queryKey: ["league-members-for-transfer", leagueId],
+    queryFn: async () => {
+      const { data: membersData, error } = await supabase
+        .from("league_members")
+        .select("user_id, role")
+        .eq("league_id", leagueId)
+        .neq("role", "owner");
+
+      if (error) throw error;
+      if (!membersData || membersData.length === 0) return [];
+
+      const userIds = membersData.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p.username]) || []);
+
+      return membersData.map(m => ({
+        userId: m.user_id,
+        username: profileMap.get(m.user_id) || "Unknown",
+        role: m.role,
+      }));
+    },
+    enabled: open,
   });
 
   const updateLeague = useMutation({
@@ -102,6 +141,58 @@ export function LeagueSettingsDialog({
         description: "Your league settings have been saved.",
       });
       queryClient.invalidateQueries({ queryKey: ["league", leagueId] });
+      setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const transferOwnership = useMutation({
+    mutationFn: async (newOwnerId: string) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Update new owner to 'owner' role
+      const { error: newOwnerError } = await supabase
+        .from("league_members")
+        .update({ role: "owner" })
+        .eq("league_id", leagueId)
+        .eq("user_id", newOwnerId);
+
+      if (newOwnerError) throw newOwnerError;
+
+      // Update current owner to 'admin' role
+      const { error: oldOwnerError } = await supabase
+        .from("league_members")
+        .update({ role: "admin" })
+        .eq("league_id", leagueId)
+        .eq("user_id", user.id);
+
+      if (oldOwnerError) throw oldOwnerError;
+
+      // Update leagues table created_by
+      const { error: leagueError } = await supabase
+        .from("leagues")
+        .update({ created_by: newOwnerId })
+        .eq("id", leagueId);
+
+      if (leagueError) throw leagueError;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Ownership transferred",
+        description: "You are now an admin of this league.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["league", leagueId] });
+      queryClient.invalidateQueries({ queryKey: ["league-membership", leagueId] });
+      queryClient.invalidateQueries({ queryKey: ["league-members", leagueId] });
+      setTransferConfirmOpen(false);
       setOpen(false);
     },
     onError: (error: Error) => {
@@ -162,7 +253,7 @@ export function LeagueSettingsDialog({
           Settings
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>League Settings</DialogTitle>
           <DialogDescription>
@@ -266,6 +357,71 @@ export function LeagueSettingsDialog({
         </Form>
 
         <Separator className="my-6" />
+
+        {/* Transfer Ownership */}
+        {members && members.length > 0 && (
+          <>
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Transfer Ownership</h3>
+              <div className="flex flex-col gap-3 rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">
+                  Transfer ownership to another member. You'll become an admin.
+                </p>
+                <Select value={selectedNewOwner} onValueChange={setSelectedNewOwner}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select new owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member) => (
+                      <SelectItem key={member.userId} value={member.userId}>
+                        {member.username} ({member.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <AlertDialog open={transferConfirmOpen} onOpenChange={setTransferConfirmOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="gap-2"
+                      disabled={!selectedNewOwner}
+                    >
+                      <UserCheck className="h-4 w-4" />
+                      Transfer Ownership
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Transfer Ownership?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to transfer ownership to{" "}
+                        <strong>{members.find(m => m.userId === selectedNewOwner)?.username}</strong>?
+                        You will become an admin and lose owner privileges.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => transferOwnership.mutate(selectedNewOwner)}
+                        disabled={transferOwnership.isPending}
+                      >
+                        {transferOwnership.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Transferring...
+                          </>
+                        ) : (
+                          "Transfer"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+            <Separator className="my-6" />
+          </>
+        )}
 
         {/* Danger Zone */}
         <div className="space-y-4">
