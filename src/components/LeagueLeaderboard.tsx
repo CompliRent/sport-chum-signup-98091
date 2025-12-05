@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Trophy, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getLeagueWeekNumber, formatWeekDateRange, getLeagueSeasonYear } from "@/lib/weekUtils";
+import { getLeagueWeekNumber, formatWeekDateRange } from "@/lib/weekUtils";
 
 interface LeagueLeaderboardProps {
   leagueId: string;
@@ -35,15 +35,12 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
   const { data: weeklyData, isLoading: weeklyLoading } = useQuery({
     queryKey: ["league-weekly-leaderboard", leagueId, selectedWeek],
     queryFn: async () => {
-      const seasonYear = getLeagueSeasonYear(leagueCreatedAt, selectedWeek);
-      
-      // Get cards for this specific week
+      // Get cards for this specific week (week_number is league-relative, so no need for season_year filter)
       const { data: cards, error: cardsError } = await supabase
         .from("cards")
         .select("id, user_id, total_score")
         .eq("league_id", leagueId)
-        .eq("week_number", selectedWeek)
-        .eq("season_year", seasonYear);
+        .eq("week_number", selectedWeek);
 
       if (cardsError) throw cardsError;
       if (!cards || cards.length === 0) return [];
