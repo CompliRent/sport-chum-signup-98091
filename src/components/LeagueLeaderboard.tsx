@@ -71,8 +71,8 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
         }
       });
 
-      // Build leaderboard
-      return cards
+      // Build leaderboard with standard competition ranking (1224)
+      const entries = cards
         .map((card) => {
           const profile = profileMap.get(card.user_id);
           const stats = userBetStats[card.user_id] || { wins: 0, losses: 0 };
@@ -88,8 +88,17 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
             points: card.total_score || 0,
           };
         })
-        .sort((a, b) => b.points - a.points)
-        .map((item, index) => ({ ...item, rank: index + 1 }));
+        .sort((a, b) => b.points - a.points);
+
+      // Apply standard competition ranking (1224)
+      let currentRank = 1;
+      for (let i = 0; i < entries.length; i++) {
+        if (i > 0 && entries[i].points < entries[i - 1].points) {
+          currentRank = i + 1;
+        }
+        entries[i].rank = currentRank;
+      }
+      return entries;
     },
     enabled: !!leagueId,
   });
@@ -130,15 +139,19 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
         }
       });
 
-      // Group cards by week to calculate weekly rankings
+      // Group cards by week to calculate weekly rankings (exclude current week)
       const weeklyCards: Record<string, typeof cards> = {};
       cards.forEach((card) => {
+        // Skip current week - only count completed weeks
+        if (card.week_number >= currentWeek) return;
+        
         const key = `${card.season_year}-${card.week_number}`;
         if (!weeklyCards[key]) weeklyCards[key] = [];
         weeklyCards[key].push(card);
       });
 
       // Calculate ranking points for each user based on weekly finishes
+      // Uses standard competition ranking (1224) for ties
       // 1st = 10pts, 2nd = 9pts, 3rd = 8pts, etc. (min 1pt for 10th+)
       const userRankingPoints: Record<string, number> = {};
       const userWeeksPlayed: Record<string, number> = {};
@@ -146,15 +159,21 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
       Object.values(weeklyCards).forEach((weekCards) => {
         // Sort by total_score descending
         const sorted = [...weekCards].sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
-        sorted.forEach((card, index) => {
-          const rankPoints = Math.max(1, 10 - index); // 1st=10, 2nd=9, ..., 10th+=1
-          userRankingPoints[card.user_id] = (userRankingPoints[card.user_id] || 0) + rankPoints;
-          userWeeksPlayed[card.user_id] = (userWeeksPlayed[card.user_id] || 0) + 1;
-        });
+        
+        // Apply standard competition ranking (1224) for ties
+        let currentRank = 1;
+        for (let i = 0; i < sorted.length; i++) {
+          if (i > 0 && (sorted[i].total_score || 0) < (sorted[i - 1].total_score || 0)) {
+            currentRank = i + 1;
+          }
+          const rankPoints = Math.max(1, 10 - (currentRank - 1)); // 1st=10, 2nd=9, ..., 10th+=1
+          userRankingPoints[sorted[i].user_id] = (userRankingPoints[sorted[i].user_id] || 0) + rankPoints;
+          userWeeksPlayed[sorted[i].user_id] = (userWeeksPlayed[sorted[i].user_id] || 0) + 1;
+        }
       });
 
-      // Build all-time leaderboard
-      return Object.entries(userRankingPoints)
+      // Build all-time leaderboard with standard competition ranking
+      const entries = Object.entries(userRankingPoints)
         .map(([userId, rankPoints]) => {
           const profile = profileMap.get(userId);
           const stats = userBetStats[userId] || { wins: 0, losses: 0 };
@@ -171,8 +190,17 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
             weeksPlayed: userWeeksPlayed[userId] || 0,
           };
         })
-        .sort((a, b) => b.points - a.points)
-        .map((item, index) => ({ ...item, rank: index + 1 }));
+        .sort((a, b) => b.points - a.points);
+
+      // Apply standard competition ranking (1224)
+      let currentRank = 1;
+      for (let i = 0; i < entries.length; i++) {
+        if (i > 0 && entries[i].points < entries[i - 1].points) {
+          currentRank = i + 1;
+        }
+        entries[i].rank = currentRank;
+      }
+      return entries;
     },
     enabled: !!leagueId,
   });
@@ -324,7 +352,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
           <TabsContent value="alltime">
             <div className="mb-4 p-3 bg-muted/50 rounded-lg text-center">
               <p className="text-sm text-muted-foreground">
-                Points based on weekly rankings: 1st = 10pts, 2nd = 9pts, etc.
+                Points based on completed weekly rankings: 1st = 10pts, 2nd = 9pts, etc.
               </p>
             </div>
             {renderLeaderboard(allTimeData, allTimeLoading, true)}
