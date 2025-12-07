@@ -352,15 +352,6 @@ const LeagueDetail = () => {
                   <span className="hidden sm:inline">{hasPicks ? "View" : "Make"}</span> Picks
                 </Button>
               </Link>
-              {isOwner && (
-                <LeagueSettingsDialog
-                  leagueId={league.id}
-                  currentName={league.name}
-                  currentDescription={league.description}
-                  currentIsPrivate={league.is_private}
-                  currentMaxMembers={league.max_members}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -571,9 +562,18 @@ const LeagueDetail = () => {
                   </AlertDialog>
                 )}
                 {isOwner && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    As the league owner, you cannot leave the league. Transfer ownership or delete the league instead.
-                  </p>
+                  <div className="space-y-4">
+                    <LeagueSettingsDialog
+                      leagueId={league.id}
+                      currentName={league.name}
+                      currentDescription={league.description}
+                      currentIsPrivate={league.is_private}
+                      currentMaxMembers={league.max_members}
+                    />
+                    <p className="text-sm text-muted-foreground text-center">
+                      As the league owner, you cannot leave the league. Transfer ownership or delete the league instead.
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
