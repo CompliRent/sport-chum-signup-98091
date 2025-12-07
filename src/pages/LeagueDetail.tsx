@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
+import { formatTeamName, formatMoneyline, formatBetTypeBadge, formatBetDisplay } from "@/lib/teamUtils";
 import { getLeagueWeekNumber, getLeagueSeasonYear } from "@/lib/weekUtils";
 
 // Helper functions
@@ -179,13 +179,20 @@ const LeagueDetail = () => {
       return bets?.map((bet) => {
         const userId = cardUserMap.get(bet.card_id);
         const profile = userId ? profileMap.get(userId) : null;
+        const { primary, secondary } = formatBetDisplay(
+          bet.bet_type,
+          bet.selection,
+          Number(bet.line),
+          bet.spread_value,
+          bet.total_value
+        );
         return {
           id: bet.id,
           username: profile?.username || "Unknown",
           game: formatGameName(bet.home_team_id, bet.away_team_id),
-          pick: formatTeamName(bet.selection),
+          pick: primary,
           betType: bet.bet_type,
-          line: bet.line,
+          odds: secondary,
           status: bet.result === null ? "pending" : bet.result ? "won" : "lost",
           time: formatTimeAgo(bet.created_at),
         };
@@ -457,9 +464,13 @@ const LeagueDetail = () => {
                             <div className="space-y-1">
                               <p className="font-medium">{bet.username}</p>
                               <p className="text-sm text-muted-foreground">{bet.game}</p>
-                              <p className="text-sm">
-                                <span className="text-foreground font-medium">{bet.pick}</span> · {formatMoneyline(bet.line)}
-                              </p>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Badge variant="secondary" className="text-xs">
+                                  {formatBetTypeBadge(bet.betType)}
+                                </Badge>
+                                <span className="text-foreground font-medium">{bet.pick}</span>
+                                <span className="text-muted-foreground">{bet.odds}</span>
+                              </div>
                               <p className="text-xs text-muted-foreground">{bet.time}</p>
                             </div>
                           </div>
