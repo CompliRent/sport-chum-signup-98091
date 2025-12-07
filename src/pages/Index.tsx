@@ -12,7 +12,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-2xl">
         <h1 className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          BetSocial
+          BetBuddies
         </h1>
         <p className="text-2xl text-muted-foreground">
           The future of social sports betting

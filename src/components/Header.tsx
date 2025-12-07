@@ -70,7 +70,7 @@ const Header = () => {
 
           <Link to="/">
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent cursor-pointer">
-              BetSocial
+              BetBuddies
             </h1>
           </Link>
           
