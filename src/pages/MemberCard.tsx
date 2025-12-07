@@ -186,7 +186,7 @@ const MemberCard = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Stats Summary */}
         {memberCard && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-8">
             <Card>
               <CardContent className="pt-6 text-center">
                 <Trophy className="h-8 w-8 text-green-500 mx-auto mb-2" />

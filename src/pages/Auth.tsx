@@ -108,7 +108,7 @@ const Auth = () => {
           className="object-cover w-full h-full"
         />
         <div className="absolute inset-0 z-20 flex flex-col justify-end p-12 bg-gradient-to-t from-background/80 to-transparent">
-          <h1 className="text-5xl font-bold text-foreground mb-4">
+          <h1 className="text-3xl lg:text-5xl font-bold text-foreground mb-4">
             Win Together
           </h1>
           <p className="text-xl text-muted-foreground">
@@ -121,8 +121,8 @@ const Auth = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              BetSocial
+            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              BetBuddies
             </h2>
             <p className="text-muted-foreground">Your winning starts here</p>
           </div>
