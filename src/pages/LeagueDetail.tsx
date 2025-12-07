@@ -371,7 +371,6 @@ const LeagueDetail = () => {
         <Tabs defaultValue="leaderboard" className="w-full">
           <TabsList className="w-full flex overflow-x-auto mb-6 h-auto flex-wrap sm:flex-nowrap">
             <TabsTrigger value="leaderboard" className="flex-1 min-w-fit text-xs sm:text-sm">Leaderboard</TabsTrigger>
-            <TabsTrigger value="members" className="flex-1 min-w-fit text-xs sm:text-sm">Members</TabsTrigger>
             <TabsTrigger value="history" className="flex-1 min-w-fit text-xs sm:text-sm">History</TabsTrigger>
             <TabsTrigger value="bets" className="flex-1 min-w-fit text-xs sm:text-sm">Bets</TabsTrigger>
             <TabsTrigger value="info" className="flex-1 min-w-fit text-xs sm:text-sm">Info</TabsTrigger>
@@ -380,54 +379,6 @@ const LeagueDetail = () => {
           {/* Leaderboard Tab */}
           <TabsContent value="leaderboard">
             <LeagueLeaderboard leagueId={id!} leagueCreatedAt={league.created_at} />
-          </TabsContent>
-
-          {/* Members Tab */}
-          <TabsContent value="members">
-            <Card>
-              <CardHeader>
-                <CardTitle>League Members</CardTitle>
-                <CardDescription>All members in this league</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {membersLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                ) : !membersData || membersData.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No members yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {membersData.map((member, index) => (
-                      <div key={member.odile}>
-                        <div className="flex items-center justify-between py-3">
-                          <div className="flex items-center gap-4">
-                            <Avatar>
-                              <AvatarFallback>{member.username.substring(0, 2).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{member.username}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Joined {format(new Date(member.joinedAt), "MMM d, yyyy")}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant={member.role === "owner" ? "default" : member.role === "admin" ? "secondary" : "outline"}>
-                            {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                          </Badge>
-                        </div>
-                        {index < membersData.length - 1 && <Separator />}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Recent Bets Tab */}
@@ -545,6 +496,52 @@ const LeagueDetail = () => {
                     <p className="text-muted-foreground">{memberCount || 0} active members</p>
                   </div>
                 </div>
+                
+                {/* Members Section */}
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Members ({memberCount || 0})
+                  </h3>
+                  {membersLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : !membersData || membersData.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No members yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {membersData.map((member, index) => (
+                        <div key={member.odile}>
+                          <div className="flex items-center justify-between py-2">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs">{member.username.substring(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-sm">{member.username}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Joined {format(new Date(member.joinedAt), "MMM d, yyyy")}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge 
+                              variant={member.role === "owner" ? "default" : member.role === "admin" ? "secondary" : "outline"}
+                              className="text-xs"
+                            >
+                              {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                            </Badge>
+                          </div>
+                          {index < membersData.length - 1 && <Separator className="my-1" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <Separator />
                 {!isOwner && (
                   <AlertDialog>
