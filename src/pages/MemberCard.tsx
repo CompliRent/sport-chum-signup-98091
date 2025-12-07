@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WeekNavigation } from "@/components/WeekNavigation";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Lock, Trophy, CheckCircle, XCircle, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { ArrowLeft, Lock, Trophy, CheckCircle, XCircle, Clock, Pencil } from "lucide-react";
 import { formatTeamName, formatBetTypeBadge, formatBetDisplay } from "@/lib/teamUtils";
 import { getLeagueWeekNumber, formatWeekDateRange, getLeagueSeasonYear } from "@/lib/weekUtils";
 
@@ -16,6 +17,7 @@ const MemberCard = () => {
   const { leagueId, userId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Fetch league info first (needed for week calculation)
   const { data: league } = useQuery({
@@ -130,6 +132,11 @@ const MemberCard = () => {
 
   const isLoading = profileLoading || cardLoading || betsLoading;
 
+  // Check if this is the current user's card for the current week
+  const isOwnCard = user?.id === userId;
+  const isCurrentWeek = selectedWeek === currentWeek;
+  const canEdit = isOwnCard && isCurrentWeek;
+
   // Calculate stats
   const wins = bets?.filter(b => b.result === true).length || 0;
   const losses = bets?.filter(b => b.result === false).length || 0;
@@ -165,7 +172,19 @@ const MemberCard = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h1 className="text-xl sm:text-3xl font-bold text-foreground">{profile?.username}'s Card</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl sm:text-3xl font-bold text-foreground">
+                      {isOwnCard ? "My Card" : `${profile?.username}'s Card`}
+                    </h1>
+                    {canEdit && (
+                      <Link to={`/leagues/${leagueId}/betting`}>
+                        <Button variant="outline" size="sm" className="gap-1.5">
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                   <p className="text-sm sm:text-base text-muted-foreground">
                     {bets?.length || 0} picks
                   </p>
