@@ -60,28 +60,28 @@ export const EventCard = ({ event, selections, onCardClick, disabled = false }: 
         
         <div className="p-4">
           {/* Matchup */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-[10px] sm:text-xs">
                   {getTeamAbbreviation(event.away_team_id)}
                 </div>
-                <span className="text-muted-foreground text-sm">@</span>
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs">
+                <span className="text-muted-foreground text-xs sm:text-sm">@</span>
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-[10px] sm:text-xs">
                   {getTeamAbbreviation(event.home_team_id)}
                 </div>
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm truncate">
                 <span className="font-medium">{formatTeamName(event.away_team_id)}</span>
                 <span className="text-muted-foreground"> @ </span>
                 <span className="font-medium">{formatTeamName(event.home_team_id)}</span>
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
           </div>
 
           {/* Odds Summary */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground">
             <div>
               <span className="uppercase">Fav: </span>
               <span className="font-mono font-medium text-foreground">

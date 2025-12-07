@@ -11,10 +11,10 @@ const Index = () => {
       <Header />
       <div className="flex-1 flex flex-col items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-2xl">
-        <h1 className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
           BetBuddies
         </h1>
-        <p className="text-2xl text-muted-foreground">
+        <p className="text-xl sm:text-2xl text-muted-foreground">
           The future of social sports betting
         </p>
         <p className="text-lg text-muted-foreground">
