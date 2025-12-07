@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { formatTeamName, formatMoneyline } from "@/lib/teamUtils";
+import { getLeagueWeekNumber, getLeagueSeasonYear } from "@/lib/weekUtils";
 
 // Helper functions
 const formatGameName = (homeTeamId: string, awayTeamId: string) => {
@@ -193,6 +194,45 @@ const LeagueDetail = () => {
     enabled: !!id,
   });
 
+  // Calculate current week for this league
+  const currentWeek = league ? getLeagueWeekNumber(league.created_at) : 1;
+  const currentYear = league ? getLeagueSeasonYear(league.created_at, currentWeek) : new Date().getFullYear();
+
+  // Check if current user has picks for the current week
+  const { data: userCurrentCard } = useQuery({
+    queryKey: ["user-current-card", id, user?.id, currentWeek, currentYear],
+    queryFn: async () => {
+      if (!id || !user?.id) return null;
+      const { data, error } = await supabase
+        .from("cards")
+        .select("id")
+        .eq("league_id", id)
+        .eq("user_id", user.id)
+        .eq("week_number", currentWeek)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id && !!user?.id && !!league,
+  });
+
+  // Get bet count for the user's current card
+  const { data: userBetsCount } = useQuery({
+    queryKey: ["user-current-bets-count", userCurrentCard?.id],
+    queryFn: async () => {
+      if (!userCurrentCard?.id) return 0;
+      const { count, error } = await supabase
+        .from("bets")
+        .select("*", { count: "exact", head: true })
+        .eq("card_id", userCurrentCard.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!userCurrentCard?.id,
+  });
+
+  const hasPicks = (userBetsCount ?? 0) > 0;
+
   const recentBets = recentBetsData || [];
 
   const getStatusColor = (status: string) => {
@@ -302,7 +342,7 @@ const LeagueDetail = () => {
               <Link to={`/leagues/${id}/betting`}>
                 <Button className="gap-2">
                   <Ticket className="h-4 w-4" />
-                  <span className="hidden sm:inline">View</span> Picks
+                  <span className="hidden sm:inline">{hasPicks ? "View" : "Make"}</span> Picks
                 </Button>
               </Link>
               {isOwner && (
