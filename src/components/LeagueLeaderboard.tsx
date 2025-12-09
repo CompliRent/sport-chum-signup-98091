@@ -208,7 +208,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
   const handlePrevWeek = () => setSelectedWeek((w) => Math.max(1, w - 1));
   const handleNextWeek = () => setSelectedWeek((w) => Math.min(currentWeek, w + 1));
 
-  const renderLeaderboard = (data: LeaderboardEntry[] | undefined, isLoading: boolean, showWeeksPlayed = false, isPastWeek = false) => {
+  const renderLeaderboard = (data: LeaderboardEntry[] | undefined, isLoading: boolean, showWeeksPlayed = false, isPastWeek = false, weekNumber?: number) => {
     if (isLoading) {
       return (
         <div className="space-y-4">
@@ -245,7 +245,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
         {data.map((member: any) => (
           <div key={member.odile}>
             <Link
-              to={`/leagues/${leagueId}/member/${member.odile}`}
+              to={`/leagues/${leagueId}/member/${member.odile}${weekNumber ? `?week=${weekNumber}` : ''}`}
               className="flex items-center justify-between py-3 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-4">
@@ -346,7 +346,7 @@ export function LeagueLeaderboard({ leagueId, leagueCreatedAt }: LeagueLeaderboa
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            {renderLeaderboard(weeklyData, weeklyLoading, false, selectedWeek < currentWeek)}
+            {renderLeaderboard(weeklyData, weeklyLoading, false, selectedWeek < currentWeek, selectedWeek)}
           </TabsContent>
 
           <TabsContent value="alltime">
