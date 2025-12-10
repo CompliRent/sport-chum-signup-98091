@@ -91,6 +91,7 @@ $$ LANGUAGE plpgsql;
 ---
 
 **Repository:** [github.com/CompliRent/bet-buddies](https://github.com/CompliRent/bet-buddies)  
-**Demo Video:** [youtube.com/watch?v=8cn6B-IzLm4](https://youtu.be/8cn6B-IzLm4)
+**Demo Video:** [youtube.com/watch?v=8cn6B-IzLm4](https://youtu.be/8cn6B-IzLm4)  
+**Logs:** [github.com/CompliRent/bet-buddies/blob/main/log.md](https://github.com/CompliRent/bet-buddies/blob/main/log.md)
 
 _Built with ❤️ by Joshua Phelps & Garrett Bennett - Fall 2025_
