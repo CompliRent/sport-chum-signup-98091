@@ -8,7 +8,17 @@
 |11/22/25 | Create new server sync script | 3
 |11/26/25 | Fix sync script timing | 2
 |12/2/25 | Support making bets | 3
-|
+|12/4/25 | Add GitHub OAuth integration | 1
+|12/4/25 | Deploy to Vercel | 1
+|12/4/25 | Debugging / populating fake data | 2
+|12/5/25 | FT to plan next moves | 1
+|12/5/25 | Add spread & over/under | 2
+|12/6/25 | Add spread & over/under | 4
+|12/7/25 | Fix lots of bugs | 1
+|12/7/25 | Plan RLS policies | 1.5
+|12/9/25 | Prep for presentation | 1.5
+|12/9/25 | Apply for validation grant | 1
+|12/9/25 | Fix bug due to shutouts | 1.5
 
 <br/>
 
